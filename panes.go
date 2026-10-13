@@ -18,11 +18,16 @@ const panesMinWidth = 110
 
 // panes says whether the machines are side by side: when there's room, and
 // there's something to do on both. While the way back to yours doesn't
-// work (or yours is a phone), what to do about it has the whole popup.
+// work, what to do about it has the whole popup. A phone or tablet has no
+// folders to show: its pane is how to send with Taildrop, beside the folder
+// it lands in.
 func (m model) panes() bool {
 	s, ok := m.you()
-	if !ok || s.Mobile || m.width < panesMinWidth {
+	if !ok || m.width < panesMinWidth {
 		return false
+	}
+	if s.Mobile {
+		return true
 	}
 	r := m.probes[s.Host]
 	return r == nil || r.err == nil
@@ -56,10 +61,14 @@ func (m model) rowsFor(remote bool) []entry {
 
 // panelFor is the setup panel a side shows in place of its folder, if any:
 // your machine's side while the way back to it doesn't work, and with tabs,
-// this server's too (dropping needs it).
+// this server's too (dropping needs it). A phone or tablet's side is always
+// its panel, and this server's never: Taildrop needs a folder to land in.
 func (m model) panelFor(remote bool) (sender, *probeResult, bool) {
 	if len(m.senders) == 0 {
 		return sender{}, nil, false
+	}
+	if s := m.senders[0]; s.Mobile {
+		return s, m.probes[s.Host], remote
 	}
 	if m.panes() && !remote {
 		return sender{}, nil, false
@@ -217,6 +226,8 @@ func (m model) youMark(onPill bool) string {
 	switch {
 	case m.finding || r == nil || r.running:
 		return " " + m.spin.View()
+	case s.Mobile && m.taildrop != nil && m.taildrop.err == "":
+		return " " + m.spin.View() // waiting for Taildrop
 	case r.err != nil && onPill:
 		return " ✗"
 	case r.err != nil:

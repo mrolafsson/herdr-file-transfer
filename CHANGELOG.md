@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 - 2026-10-13
+
+- **iPad and phone, beside the folders**: this server's folders on one
+  side, Taildrop on the other (a tab away when narrow), so you choose where
+  what's shared lands.
+- **Taildrop waits by itself** from the moment the popup opens, into the
+  folder shown, and follows you to another. No more `^t` to start and stop:
+  it's only there to try again after an error. A spinner says it's waiting,
+  on the iPad's tab and in the status line.
+- **`^y` copies the Tailscale operator command** when the server's
+  Tailscale won't hand files over.
+- A copied command's "sent to your clipboard" now shows on your machine's
+  side too.
+
 ## 0.1.0 - 2026-10-13
 
 - **Drop files on a popup** and they're copied, over ssh, from the machine

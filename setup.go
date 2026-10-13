@@ -356,30 +356,31 @@ func (m model) viewTaildrop(s sender, server string) []string {
 		styleText.Render("Pasting an image works, though: herdr brings that over itself."),
 		styleText.Render("For anything else, Taildrop can bring it:"), "",
 	}
+	// One paragraph: the pane wraps it to fit.
 	howTaildrop := []string{
-		"On the " + dev + ", in Photos, Files or any app: Share, then Tailscale",
-		"in the row of apps (not there? More, at the end of the row, and turn it on),",
-		"then " + server + ". The Tailscale app has to be on.",
+		"On the " + dev + ", in Photos, Files or any app: Share, then Tailscale " +
+			"in the row of apps (not there? More, at the end of the row, and turn it on), " +
+			"then " + server + ". The Tailscale app has to be on.",
 	}
 	switch {
 	case m.taildrop != nil && m.taildrop.err != "":
 		out = append(out, styleErr.Render(m.taildrop.err))
 		if m.taildrop.operator {
-			out = append(out, styleText.Render("Run this once here, then ^t again:"),
-				"  "+styleTree.Render("sudo tailscale set --operator="+localUser()))
+			out = append(out, keyed("Run this once here (^y copies it), then ^t to try again:"),
+				"  "+styleTree.Render(operatorCommand()))
+		} else {
+			out = append(out, keyed("^t tries again."))
 		}
-	case m.taildrop != nil:
-		out = append(out, m.spin.View()+" "+styleLead.Render("Waiting for files…"), "")
-		for _, h := range howTaildrop {
-			out = append(out, styleText.Render(h))
-		}
-		out = append(out, styleText.Render("They land in ")+styleTree.Render(tildify(m.dir))+styleText.Render("."))
 	default:
-		out = append(out, keyed("Press ^t, and "+server+" waits for files. Then:"), "")
+		out = append(out, m.spin.View()+" "+styleLead.Render(server+" is waiting for files."), "")
 		for _, h := range howTaildrop {
 			out = append(out, styleText.Render(h))
 		}
-		out = append(out, styleText.Render("They land in ")+styleTree.Render(tildify(m.dir))+styleText.Render(", the folder shown."))
+		shown := ", the folder shown."
+		if m.panes() {
+			shown = ", the folder on the left."
+		}
+		out = append(out, styleText.Render("They land in ")+styleTree.Render(tildify(m.dir))+styleText.Render(shown))
 	}
 	return out
 }
@@ -427,6 +428,11 @@ func receive(ctx context.Context, dir string) tea.Cmd {
 	}
 }
 
+// operatorCommand lets this user take Taildrop files, run once as root.
+func operatorCommand() string {
+	return "sudo tailscale set --operator=" + localUser()
+}
+
 // operatorErr says whether tailscale refused because this user may not
 // take files: only root or its operator can.
 func operatorErr(msg string) bool {
@@ -452,11 +458,11 @@ func (m model) setupShown() (sender, *probeResult, bool) {
 func (m model) setupFooter(s sender, r *probeResult) []hint {
 	var hs []hint
 	if s.Mobile {
-		if m.taildrop == nil || m.taildrop.err != "" {
-			hs = append(hs, hint{"^t receive with Taildrop", "ctrl+t", hintGo})
-		} else {
-			hs = append(hs, hint{"^t stop", "ctrl+t", hintQuiet})
+		if m.taildrop != nil && m.taildrop.operator {
+			hs = append(hs, hint{"^y copy command", "ctrl+y", hintGo})
 		}
+		hs = append(hs, m.taildropHints()...)
+		hs = append(hs, hint{"tab " + serverName(), "tab", hintView})
 	} else {
 		// The next step's key, if it has one, as the thing to do.
 		st := statusOf(r.err)
@@ -473,6 +479,64 @@ func (m model) setupFooter(s sender, r *probeResult) []hint {
 		hs = append(hs, hint{"^r check now", "ctrl+r", hintView})
 	}
 	return append(hs, hint{"esc close", "esc", hintQuiet})
+}
+
+// taildropHints is ^t, when waiting for Taildrop files stopped on an error.
+func (m model) taildropHints() []hint {
+	if m.taildrop != nil && m.taildrop.err != "" {
+		return []hint{{"^t try again", "ctrl+t", hintGo}}
+	}
+	return nil
+}
+
+// listen waits for Taildrop files into the folder shown, from a phone or
+// tablet: always, while the popup's open. Any wait already going stops
+// first, so a new folder is where the next ones land.
+func (m *model) listen() tea.Cmd {
+	if s, ok := m.you(); !ok || !s.Mobile {
+		return nil
+	}
+	if m.taildrop != nil {
+		m.taildrop.cancel()
+	}
+	ctx, cancel := context.WithCancel(m.ctx)
+	m.taildrop = &taildropState{cancel: cancel}
+	return receive(ctx, m.dir)
+}
+
+// relisten moves a wait for Taildrop files to the folder now shown; one
+// stopped on an error stays stopped.
+func (m *model) relisten() tea.Cmd {
+	if m.taildrop == nil || m.taildrop.err != "" {
+		return nil
+	}
+	return m.listen()
+}
+
+// copyHint is ^y in a folder: its paths, or while Tailscale won't hand
+// files over, the command that lets it.
+func (m model) copyHint(have bool) hint {
+	if m.taildrop != nil && m.taildrop.operator {
+		return hint{"^y copy command", "ctrl+y", hintGo}
+	}
+	h := hint{"^y copy path", "ctrl+y", hintView}
+	if !have {
+		h.key = ""
+	}
+	return h
+}
+
+// handleTaildrop is a key on a phone or tablet's side: there's nothing to
+// browse, only Taildrop's keys and the way back.
+func (m model) handleTaildrop(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "ctrl+t", "ctrl+y":
+		cmd, _ := m.setupKey(k.String())
+		return m, cmd
+	case "tab", "shift+tab", "esc", "ctrl+c":
+		return m.handleCommon(k)
+	}
+	return m, nil
 }
 
 // setupKey does what a setup key says, for the sender shown.
@@ -509,6 +573,14 @@ func (m *model) setupKey(key string) (tea.Cmd, bool) {
 			return actionMsg{done: "Trusted " + s.Name + "'s host key"}
 		}, true
 	case "ctrl+y":
+		if s.Mobile {
+			if m.taildrop == nil || !m.taildrop.operator {
+				return nil, false
+			}
+			os.Stdout.WriteString(ansi.SetSystemClipboard(operatorCommand()))
+			m.flash = "Sent to your clipboard: paste it in a terminal here on " + serverName() + ", then ^t"
+			return nil, true
+		}
 		_, key := publicKey()
 		if key == "" || s.Mobile {
 			return nil, false
@@ -519,17 +591,10 @@ func (m *model) setupKey(key string) (tea.Cmd, bool) {
 		m.flash = "Sent to your clipboard: paste it in a terminal on " + s.Name + ", then ^r"
 		return nil, true
 	case "ctrl+t":
-		if !s.Mobile {
-			return nil, false
+		if !s.Mobile || m.taildrop == nil || m.taildrop.err == "" {
+			return nil, false // already waiting
 		}
-		if m.taildrop != nil && m.taildrop.err == "" {
-			m.taildrop.cancel()
-			m.taildrop = nil
-			return nil, true
-		}
-		ctx, cancel := context.WithCancel(m.ctx)
-		m.taildrop = &taildropState{cancel: cancel}
-		return receive(ctx, m.dir), true
+		return m.listen(), true
 	}
 	return nil, false
 }
@@ -560,8 +625,5 @@ func (m model) received(msg taildropMsg) (tea.Model, tea.Cmd) {
 		m.landed[f] = true
 	}
 	// Wait for the next, into the folder shown now.
-	ctx, cancel := context.WithCancel(m.ctx)
-	m.taildrop.cancel()
-	m.taildrop.cancel = cancel
-	return m, tea.Batch(m.list(m.dir), receive(ctx, m.dir))
+	return m, tea.Batch(m.list(m.dir), m.listen())
 }

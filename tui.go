@@ -427,6 +427,9 @@ func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.confirm != nil {
 		return m.handleConfirm(k)
 	}
+	if s, ok := m.you(); ok && s.Mobile && m.onRemote {
+		return m.handleTaildrop(k)
+	}
 	if m.onRemote {
 		return m.handleRemote(k)
 	}
@@ -500,6 +503,11 @@ func (m model) handleCommon(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 			return m, nil
+		}
+		// A phone or tablet's keys work from the folder Taildrop fills too.
+		if s, ok := m.you(); ok && s.Mobile && (k.String() == "ctrl+t" || k.String() == "ctrl+y" && m.taildrop != nil && m.taildrop.operator) {
+			cmd, _ := m.setupKey(k.String())
+			return m, cmd
 		}
 		switch k.String() {
 		case "ctrl+y":
@@ -611,7 +619,7 @@ func (m *model) enter(dir string) tea.Cmd {
 	m.setFilter("")
 	// Back up a level: the folder just left is selected.
 	m.pendingSelect = prev
-	return m.list(dir)
+	return tea.Batch(m.list(dir), m.relisten())
 }
 
 // ── the list ─────────────────────────────────────────────────────────────────
@@ -855,16 +863,15 @@ func (m model) viewJob(j *job) string {
 // statusLine is the one line above the footer.
 func (m model) statusLine() string {
 	w := max(10, m.width-4)
+	_, _, panelShown := m.setupShown()
 	switch {
 	case m.confirm != nil:
 		return " " + styleWarn.Render(shorten(m.confirm.question(), w)) + "\n"
 	case len(m.marks[side(m.onRemote)]) > 0:
 		line, _ := m.markedStatus(w)
 		return line
-	case m.onRemote:
-		if _, _, panel := m.setupShown(); !panel {
-			return m.remoteStatus(w)
-		}
+	case m.onRemote && !panelShown:
+		return m.remoteStatus(w)
 	case m.leaving:
 		return " " + styleWarn.Render("Uploads are still running: esc again stops them.") + "\n"
 	case m.err != "":
@@ -881,7 +888,7 @@ func (m model) statusLine() string {
 		case r != nil && r.running:
 			return " " + m.spin.View() + styleDim.Render(shorten(" Checking ssh to "+s.Name+"…", w)) + "\n"
 		case s.Mobile:
-			return styleDim.Render(shorten(" Typing searches folders: what Taildrop brings lands in the one shown.", w)) + "\n"
+			return m.taildropStatus(w)
 		case r != nil && r.err != nil:
 			if _, _, panel := m.setupShown(); !panel {
 				return " " + styleErr.Render(shorten(m.probeAdvice(s, r.err), w)) + "\n"
@@ -893,6 +900,18 @@ func (m model) statusLine() string {
 		return styleDim.Render(shorten(" Drop files here to copy them in. ^s sends what's selected to "+m.otherSide()+".", w)) + "\n"
 	}
 	return styleDim.Render(shorten(" Drop files or folders on this window to copy them into "+tildify(m.dir)+".", w)) + "\n"
+}
+
+// taildropStatus is where Taildrop puts what it brings, and whether it's
+// waiting: with tabs, the iPad's panel saying so is a tab away.
+func (m model) taildropStatus(w int) string {
+	switch {
+	case m.taildrop != nil && m.taildrop.err != "":
+		return " " + styleErr.Render(shorten(clean(m.taildrop.err, false), w)) + "\n"
+	case m.taildrop != nil:
+		return " " + m.spin.View() + styleDim.Render(shorten(" Waiting for Taildrop files: they land in "+tildify(m.dir)+".", w-2)) + "\n"
+	}
+	return styleDim.Render(shorten(" What Taildrop brings lands in "+tildify(m.dir)+": browse to the folder you want.", w)) + "\n"
 }
 
 func (m model) footer() []hint {
@@ -1022,7 +1041,7 @@ func (m *model) probeSender() tea.Cmd {
 	}
 	if s.Mobile {
 		m.probes[s.Host] = &probeResult{err: errMobile}
-		return nil
+		return m.listen()
 	}
 	m.probes[s.Host] = &probeResult{running: true}
 	return m.probeCmd(s)
@@ -1258,8 +1277,12 @@ func (m model) sideFooter() []hint {
 		if m.onRemote {
 			to = serverName()
 		}
-		_, ready := m.remoteReady()
-		hs = append(hs, on(hint{m.sendLabel(len(items), to), "ctrl+s", hintGo}, have && ready))
+		if s.Mobile {
+			hs = append(hs, m.taildropHints()...)
+		} else {
+			_, ready := m.remoteReady()
+			hs = append(hs, on(hint{m.sendLabel(len(items), to), "ctrl+s", hintGo}, have && ready))
+		}
 	}
 	if m.agentPane != "" {
 		hs = append(hs, on(hint{"^e agent", "ctrl+e", hintGo}, have && !m.onRemote))
@@ -1279,7 +1302,7 @@ func (m model) sideFooter() []hint {
 	}
 	hs = append(hs,
 		on(hint{"space mark", " ", hintView}, m.filter.Value() == "" && m.selectable()),
-		on(hint{"^y copy path", "ctrl+y", hintView}, have),
+		m.copyHint(have),
 		hint{"← up", "left", hintView},
 	)
 	if m.onRemote {

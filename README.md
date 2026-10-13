@@ -167,17 +167,20 @@ own user name. Set `user` in `config.json` if you're someone else there.
 ### From an iPad or a phone
 
 They can't take ssh, so dropping can't work from them, and the popup says
-so. Taildrop can still bring files: `^t` and the server waits for them;
-share them from the iPad, and they land in the folder shown. Taildrop has
+so, in the pane beside the server's folders. Taildrop can still bring
+files: the server waits for them as soon as the popup opens, into the
+folder shown; browse to the one you want, share them from the iPad, and
+they land there. Taildrop has
 no screen of its own on an iPad: it's Tailscale in the share sheet. Tap
 *Share*, then *Tailscale* in the row of apps (not there? *More*, at the end
 of that row, and turn it on), then the server. The Tailscale app has to be
 installed and on.
 
-![On an iPad: dropping won't work, but ^t waits for files shared with Taildrop](docs/images/ipad.png)
+![On an iPad: dropping won't work, but the server waits for files shared with Taildrop](docs/images/ipad.png)
 
 Taildrop on a Linux server only hands files to root or Tailscale's
-operator. If the popup says so, once: `sudo tailscale set --operator=$USER`.
+operator. If the popup says so, once: `sudo tailscale set --operator=$USER`
+(`^y` copies it).
 
 ## Configuration
 

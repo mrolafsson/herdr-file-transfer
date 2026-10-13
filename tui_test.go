@@ -330,14 +330,68 @@ func TestDeleteToTrash(t *testing.T) {
 }
 
 func TestSetupPanel(t *testing.T) {
-	// On an iPad: sorry, and Taildrop.
-	m := newTestModel(t, t.TempDir())
+	// On an iPad: this server's folders, and beside them, sorry, and Taildrop.
+	dir := t.TempDir()
+	os.Mkdir(filepath.Join(dir, "Invoices"), 0o755)
+	m := newTestModel(t, dir)
 	m.senders = []sender{{Host: "ipad-pro", Name: "ipad-pro", Device: "iPad", Mobile: true}}
 	m.probes["ipad-pro"] = &probeResult{err: errMobile}
+	m = drive(t, m, tea.WindowSizeMsg{Width: 140, Height: 30})
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"Sorry, dropping won't work from your iPad", "then Tailscale", "More, at the end of the row", "^t receive with Taildrop"} {
+	for _, want := range []string{"Invoices/", "Sorry, dropping won't work from your iPad", "then Tailscale", serverName() + " is waiting for files", "lands in"} {
 		if !strings.Contains(view, want) {
-			t.Errorf("iPad panel lacks %q:\n%s", want, view)
+			t.Errorf("iPad panes lack %q:\n%s", want, view)
+		}
+	}
+	// The folders take the keys: into one, and Taildrop lands there.
+	m.cursor = 1
+	m = drive(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.dir != filepath.Join(dir, "Invoices") {
+		t.Errorf("enter didn't open Invoices: %s", m.dir)
+	}
+	// Waiting for Taildrop, a new folder moves the wait there (the command
+	// isn't run: it would be the real tailscale).
+	stopped := false
+	m.taildrop = &taildropState{cancel: func() { stopped = true }}
+	if cmd := m.enter(dir); cmd == nil || !stopped || m.taildrop == nil {
+		t.Errorf("going up didn't move the Taildrop wait (stopped %v)", stopped)
+	}
+	m.taildrop.cancel()
+	m.taildrop = nil
+
+	// Narrower, they're tabs: the folders first, the iPad's a tab away.
+	m = drive(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	if view = ansi.Strip(m.View()); strings.Contains(view, "Sorry") {
+		t.Errorf("the server's tab shows the iPad panel:\n%s", view)
+	}
+	// Waiting for Taildrop shows on the folders' tab too: a spinner, and where.
+	m.taildrop = &taildropState{cancel: func() {}}
+	if view = ansi.Strip(m.View()); !strings.Contains(view, "Waiting for Taildrop files: they land in") || !strings.Contains(view, "ipad-pro "+ansi.Strip(m.spin.View())) {
+		t.Errorf("the folders' tab doesn't say Taildrop's waiting:\n%s", view)
+	}
+	m.taildrop = nil
+	m = drive(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if view = ansi.Strip(m.View()); !strings.Contains(view, "Sorry, dropping won't work from your iPad") || !strings.Contains(view, "More, at the end of the row") {
+		t.Errorf("the iPad's tab lacks its panel:\n%s", view)
+	}
+
+	// Tailscale won't hand it files: ^y copies the command that lets it,
+	// from either side.
+	m.taildrop = &taildropState{cancel: func() {}, err: "no", operator: true}
+	view = ansi.Strip(m.View())
+	for _, want := range []string{operatorCommand(), "^y copies it", "^y copy command"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("operator panel lacks %q:\n%s", want, view)
+		}
+	}
+	for _, tab := range []bool{false, true} {
+		if tab {
+			m = drive(t, m, tea.KeyMsg{Type: tea.KeyTab})
+		}
+		m.flash = ""
+		m = drive(t, m, tea.KeyMsg{Type: tea.KeyCtrlY})
+		if !strings.Contains(m.flash, "clipboard") {
+			t.Errorf("^y (onRemote %v) didn't copy the operator command: %q", m.onRemote, m.flash)
 		}
 	}
 

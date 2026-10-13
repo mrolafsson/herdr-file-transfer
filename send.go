@@ -258,24 +258,7 @@ func (m model) sideTabs() string {
 		out += " " + m.spin.View() + styleDim.Render(" finding your machine")
 	case !ok:
 	default:
-		mark := ""
-		switch r := m.probes[s.Host]; {
-		case r == nil, r.running:
-			mark = " " + m.spin.View()
-		case r.err != nil:
-			mark = " ✗"
-		default:
-			mark = " ✓"
-		}
-		if !m.onRemote {
-			// Coloured off the pill; on it, the pill's own ink.
-			switch r := m.probes[s.Host]; {
-			case r != nil && !r.running && r.err != nil:
-				mark = " " + styleErr.Render("✗")
-			case r != nil && !r.running:
-				mark = " " + styleOK.Render("✓")
-			}
-		}
+		mark := m.youMark(m.onRemote)
 		out += " " + cell(m.onRemote, s.Name, mark)
 	}
 	return out
@@ -285,7 +268,9 @@ func (m model) sideTabs() string {
 func (m model) viewSides() string {
 	left := m.sideTabs() + "  "
 	where := tildify(m.dir)
-	if m.onRemote {
+	if s, _ := m.you(); m.onRemote && s.Mobile {
+		where = "" // no folders: its panel says where Taildrop puts things
+	} else if m.onRemote {
 		where = m.remoteDirShown()
 		if m.remote.home != "" {
 			where = remoteTilde(m.remote.dir, m.remote.home)
