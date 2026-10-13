@@ -338,7 +338,7 @@ func TestSetupPanel(t *testing.T) {
 	m.probes["ipad-pro"] = &probeResult{err: errMobile}
 	m = drive(t, m, tea.WindowSizeMsg{Width: 140, Height: 30})
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"Invoices/", "Sorry, dropping won't work from your iPad", "then Tailscale", serverName() + " is waiting for files", "lands in"} {
+	for _, want := range []string{"Invoices/", "Sorry, dropping won't work from your iPad", "then Tailscale", serverName() + " is waiting for files", "They land in the folder on the left."} {
 		if !strings.Contains(view, want) {
 			t.Errorf("iPad panes lack %q:\n%s", want, view)
 		}
@@ -366,7 +366,7 @@ func TestSetupPanel(t *testing.T) {
 	}
 	// Waiting for Taildrop shows on the folders' tab too: a spinner, and where.
 	m.taildrop = &taildropState{cancel: func() {}}
-	if view = ansi.Strip(m.View()); !strings.Contains(view, "Waiting for Taildrop files: they land in") || !strings.Contains(view, "ipad-pro "+ansi.Strip(m.spin.View())) {
+	if view = ansi.Strip(m.View()); !strings.Contains(view, "Waiting for Taildrop files") || !strings.Contains(view, "ipad-pro "+ansi.Strip(m.spin.View())) {
 		t.Errorf("the folders' tab doesn't say Taildrop's waiting:\n%s", view)
 	}
 	m.taildrop = nil

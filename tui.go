@@ -902,16 +902,16 @@ func (m model) statusLine() string {
 	return styleDim.Render(shorten(" Drop files or folders on this window to copy them into "+tildify(m.dir)+".", w)) + "\n"
 }
 
-// taildropStatus is where Taildrop puts what it brings, and whether it's
-// waiting: with tabs, the iPad's panel saying so is a tab away.
+// taildropStatus is whether Taildrop's waiting, with tabs: the iPad's panel
+// saying so is a tab away. Side by side, the panel says it.
 func (m model) taildropStatus(w int) string {
 	switch {
-	case m.taildrop != nil && m.taildrop.err != "":
+	case m.panes() || m.taildrop == nil:
+		return "\n"
+	case m.taildrop.err != "":
 		return " " + styleErr.Render(shorten(clean(m.taildrop.err, false), w)) + "\n"
-	case m.taildrop != nil:
-		return " " + m.spin.View() + styleDim.Render(shorten(" Waiting for Taildrop files: they land in "+tildify(m.dir)+".", w-2)) + "\n"
 	}
-	return styleDim.Render(shorten(" What Taildrop brings lands in "+tildify(m.dir)+": browse to the folder you want.", w)) + "\n"
+	return " " + m.spin.View() + styleDim.Render(" Waiting for Taildrop files") + "\n"
 }
 
 func (m model) footer() []hint {

@@ -376,11 +376,11 @@ func (m model) viewTaildrop(s sender, server string) []string {
 		for _, h := range howTaildrop {
 			out = append(out, styleText.Render(h))
 		}
-		shown := ", the folder shown."
+		where := "They land in the folder open on " + server + "'s tab."
 		if m.panes() {
-			shown = ", the folder on the left."
+			where = "They land in the folder on the left."
 		}
-		out = append(out, styleText.Render("They land in ")+styleTree.Render(tildify(m.dir))+styleText.Render(shown))
+		out = append(out, styleText.Render(where))
 	}
 	return out
 }
