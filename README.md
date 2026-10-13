@@ -45,6 +45,38 @@ copied there, over ssh, from the machine you're at.
   (`hero 2.png`). `^d` moves a file to the trash, after asking.
 - **It fits in.** Follows herdr's theme, works with the mouse, and draws a
   key, a folder and a state the way the other herdr plugins do.
+- **Files for the other plugins.** It's how [herdr-linear](https://github.com/mrolafsson/herdr-linear)
+  attaches files to a new issue: see [below](#works-with-the-other-herdr-plugins).
+
+## Works with the other herdr plugins
+
+herdr-file-transfer is the one that can reach the machine you're at, so the
+other herdr plugins come to it for files. There's nothing to configure:
+install both and they find each other.
+
+| Plugin | With herdr-file-transfer |
+| --- | --- |
+| [herdr-linear](https://github.com/mrolafsson/herdr-linear) | A new issue's **Files**: `^f`, or a click on *Add new…*, and the popup turns into this one, choosing files to attach. Pick any file on the server, or drop one from your Mac (or share one from your iPad with Taildrop) and it's brought over first. `enter`, and you're back on the issue, as you left it, with the files listed. They're uploaded when it's created: images shown in its description, anything else linked. |
+
+Choosing files for another plugin, the popup:
+
+- **Opens on the agent's folder.** Browse anywhere on the server; `space`
+  marks files, and marks stay as you go from folder to folder, so files from
+  several can go together.
+- **Marks what you bring over.** A file dropped, sent with Taildrop or
+  brought over with `^s` lands in the folder shown, as always, and is marked,
+  ready to go.
+- **Hands them back.** `enter` on a file hands back what's marked, or that
+  file; `enter` on a folder still opens it. `esc` goes back with none. The
+  other plugin's popup opens again in its place, without a flicker.
+
+For plugin authors, the convention: open herdr-file-transfer's `picker` pane
+with `HERDR_FILE_TRANSFER_PICK` set to the verb (`attach`), `HERDR_POPUP_RETURN`
+to your popup (`{"plugin_id", "entrypoint", "env"}`, as `plugin.pane.open`
+takes it) and, if you like, `HERDR_FILE_TRANSFER_DIR` to the folder to start
+in. Your popup is opened again with `HERDR_FILE_TRANSFER_PICKED` added to its
+`env`: the chosen files' absolute paths, as a JSON list, or not set if none
+were.
 
 ## Requirements
 

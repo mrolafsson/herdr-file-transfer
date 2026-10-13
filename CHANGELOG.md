@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-10-13
+
+- **Picks files for the other herdr plugins**, starting with herdr-linear's
+  attachments: opened by another plugin, the popup marks what you bring
+  over, keeps marks from folder to folder, and `enter` hands the files back
+  to that plugin's popup (`esc`, none). The convention is in the README.
+- The `→` between the panes is gone for an iPad: nothing's sent to one.
+- Taildrop's waiting is said once: the iPad's pane says it side by side, the
+  status line only with tabs.
+
 ## 0.2.0 - 2026-10-13
 
 - **iPad and phone, beside the folders**: this server's folders on one

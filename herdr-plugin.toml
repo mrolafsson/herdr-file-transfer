@@ -1,6 +1,6 @@
 id = "herdr-file-transfer"
 name = "File transfer"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.9.0"
 description = "Files between your machine and herdr on a remote box (a VPS, a Hetzner server): drop them on a popup and they're copied over ssh into the agent's folder. Browse both machines side by side, send either way, hand a path to the agent in one key."
 platforms = ["linux", "macos"]

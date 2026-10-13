@@ -123,6 +123,10 @@ type model struct {
 	agentPane string
 	// demo: a made-up Mac, its way back not set up, never ssh'd to.
 	demo bool
+	// pick is what's done with files picked for another plugin's popup
+	// ("attach"), and back that popup: enter hands it the files (pick.go).
+	pick string
+	back *popupRef
 
 	senders []sender
 	// probes is what checking each sender found, by host: absent until
@@ -393,6 +397,7 @@ func (m model) finish(msg jobDoneMsg) (tea.Model, tea.Cmd) {
 		j.state, j.dest = jobDone, msg.dest
 		if !j.out {
 			m.landed[msg.dest] = true
+			m.markPicked(msg.dest)
 			// On what just came: ^e hands it to the agent from there.
 			if !m.onRemote && filepath.Dir(msg.dest) == m.dir {
 				m.pendingSelect = msg.dest
@@ -441,6 +446,9 @@ func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if k.String() == "enter" && m.filter.Value() != "" && len(m.rows()) == 0 {
 			return m.mkdir(m.filter.Value())
 		}
+		if k.String() == "enter" && m.picking() {
+			return m.pickDone()
+		}
 		return m, nil
 	case "left", "backspace":
 		if m.filter.Value() == "" {
@@ -476,6 +484,9 @@ func (m model) handleCommon(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case m.anyRunning() && !m.leaving:
 			m.leaving = true
 		default:
+			if m.back != nil {
+				goBack(*m.back, nil)
+			}
 			return m, tea.Quit
 		}
 		return m, nil
@@ -614,7 +625,11 @@ func (m *model) enter(dir string) tea.Cmd {
 		return nil
 	}
 	prev := m.dir
-	m.clearMarks(false)
+	// Picking, what's marked stays marked from folder to folder: files
+	// from several, handed back together.
+	if !m.picking() {
+		m.clearMarks(false)
+	}
 	m.dir, m.entries, m.tree, m.treeFor, m.err = dir, nil, nil, "", ""
 	m.setFilter("")
 	// Back up a level: the folder just left is selected.
@@ -870,6 +885,8 @@ func (m model) statusLine() string {
 	case len(m.marks[side(m.onRemote)]) > 0:
 		line, _ := m.markedStatus(w)
 		return line
+	case m.onRemote && !panelShown && m.picking() && m.remote.err == "":
+		return m.pickStatus(w)
 	case m.onRemote && !panelShown:
 		return m.remoteStatus(w)
 	case m.leaving:
@@ -896,6 +913,9 @@ func (m model) statusLine() string {
 			return styleDim.Render(shorten(" Fix the connection back, or browse: typing searches folders.", w)) + "\n"
 		}
 	}
+	if m.picking() {
+		return m.pickStatus(w)
+	}
 	if _, ok := m.remoteReady(); ok {
 		return styleDim.Render(shorten(" Drop files here to copy them in. ^s sends what's selected to "+m.otherSide()+".", w)) + "\n"
 	}
@@ -906,6 +926,8 @@ func (m model) statusLine() string {
 // saying so is a tab away. Side by side, the panel says it.
 func (m model) taildropStatus(w int) string {
 	switch {
+	case m.picking() && (m.panes() || m.taildrop == nil || m.taildrop.err == ""):
+		return m.pickStatus(w)
 	case m.panes() || m.taildrop == nil:
 		return "\n"
 	case m.taildrop.err != "":
@@ -1016,11 +1038,15 @@ func runPicker(ctx context.Context, cfg config, dir string) error {
 	m := newModel(ctx, cfg, dir)
 	m.agentPane = os.Getenv(paneEnv)
 	m.demo = os.Getenv(demoEnv) != ""
+	m.pick, m.back = pickVerb(os.Getenv(pickEnv)), cameFrom()
 	_, err := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion(), tea.WithContext(ctx)).Run()
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return finishSwap()
 }
 
 // probeResult is what checking a sender found.
@@ -1284,7 +1310,9 @@ func (m model) sideFooter() []hint {
 			hs = append(hs, on(hint{m.sendLabel(len(items), to), "ctrl+s", hintGo}, have && ready))
 		}
 	}
-	if m.agentPane != "" {
+	if m.picking() {
+		hs = append(hs, on(hint{m.pickLabel(), "enter", hintGo}, m.canPick()))
+	} else if m.agentPane != "" {
 		hs = append(hs, on(hint{"^e agent", "ctrl+e", hintGo}, have && !m.onRemote))
 	}
 	hs = append(hs,
@@ -1334,6 +1362,9 @@ func (m model) markedStatus(w int) (string, bool) {
 	line := " " + itoa(n) + " marked:"
 	if _, ok := m.remoteReady(); ok {
 		line += " ^s sends them to " + m.otherSide() + " ·"
+	}
+	if m.picking() && !m.onRemote {
+		line += " enter to " + m.pick + " ·"
 	}
 	line += " space unmarks · ^a marks all"
 	return styleTree.Render(shorten(line, w)) + "\n", true

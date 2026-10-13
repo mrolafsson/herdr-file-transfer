@@ -24,6 +24,8 @@ const usage = `herdr-file-transfer — drop files from your desktop into herdr
   check            whether each sender can be fetched from: ssh gets in with a
                    key, tar is there, and a Mac lets ssh read the Desktop
   fetch SRC DIR    copy SRC from the likeliest sender into DIR, as a drop does
+  handoff JSON     (internal) open the popup files were picked for, once this
+                   one has closed
 `
 
 // dirEnv is how the action tells the popup where to open; paneEnv, the
@@ -99,6 +101,11 @@ func run(ctx context.Context, args []string) error {
 		}
 		fmt.Println(got)
 		return nil
+	case "handoff":
+		if len(args) != 2 {
+			return errors.New("handoff needs a popup")
+		}
+		return runHandoff(args[1])
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil

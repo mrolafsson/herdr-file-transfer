@@ -623,6 +623,7 @@ func (m model) received(msg taildropMsg) (tea.Model, tea.Cmd) {
 		}
 		m.jobs = append(m.jobs, j)
 		m.landed[f] = true
+		m.markPicked(f)
 	}
 	// Wait for the next, into the folder shown now.
 	return m, tea.Batch(m.list(m.dir), m.listen())
