@@ -131,9 +131,15 @@ func TestWriteDemoScreens(t *testing.T) {
 	}
 	save("panes", panes)
 
-	// On an iPad.
-	tablet := screen(project)
+	// On an iPad: the folders beside it, Taildrop waiting to fill the one
+	// shown.
+	tablet := screen(images)
 	tablet.senders = []sender{ipad, mac}
 	tablet.probes = map[string]*probeResult{"ipad": {err: errMobile}}
+	tablet.taildrop = &taildropState{cancel: func() {}}
+	tablet.agentPane = "w1:p1"
+	next, _ = tablet.Update(tea.WindowSizeMsg{Width: 132, Height: 24})
+	tablet = next.(model)
+	tablet.cursor = 1
 	save("ipad", tablet)
 }

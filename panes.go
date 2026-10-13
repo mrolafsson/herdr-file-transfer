@@ -243,7 +243,9 @@ func (m model) youMark(onPill bool) string {
 func (m model) viewPanesHeader() string {
 	lw, rw := m.paneWidths()
 	arrow := "→"
-	if m.onRemote {
+	if s, _ := m.you(); s.Mobile {
+		arrow = " " // nothing's sent to a phone or tablet
+	} else if m.onRemote {
 		arrow = "←"
 	}
 	left := " " + m.paneTitle(false, lw-1)
