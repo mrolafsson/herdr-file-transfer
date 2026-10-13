@@ -2,7 +2,7 @@ id = "herdr-file-transfer"
 name = "File transfer"
 version = "0.1.0"
 min_herdr_version = "0.9.0"
-description = "Drop files from your desktop onto a herdr popup and they're copied, over ssh, into the agent's folder (or any folder you pick). Browse and search folders on the way."
+description = "Files between your machine and herdr on a remote box (a VPS, a Hetzner server): drop them on a popup and they're copied over ssh into the agent's folder. Browse both machines side by side, send either way, hand a path to the agent in one key."
 platforms = ["linux", "macos"]
 
 # Builds ./bin/herdr-file-transfer from source with Go, or downloads the release
@@ -18,7 +18,7 @@ command = ["sh", "scripts/build.sh"]
 [[actions]]
 id = "open"
 title = "File transfer: drop files here"
-description = "Opens on the folder of the agent you're in: drop files from your desktop onto it and they're copied there over ssh. Browse or search to put them somewhere else."
+description = "Opens on the folder of the agent you're in, beside your machine's: drop files on it and they're copied there over ssh, or send either way between the two."
 contexts = ["global", "workspace", "pane"]
 command = ["./bin/herdr-file-transfer", "action", "open"]
 
