@@ -2,11 +2,16 @@
 
 **Drop a file on herdr, and it's in your agent's folder.**
 
-Your agents run on a server; the screenshot, the PDF, the CSV you want them
-to look at is on your laptop. herdr-file-transfer is a
+Running herdr on a VPS or a remote box (Hetzner, a cloud dev server), and
+getting files to it is a pain: the screenshot, the PDF, the CSV you want an
+agent to look at is on your laptop. herdr-file-transfer is a
 [herdr](https://herdr.dev) plugin that opens a popup on the folder of the
 agent you're in: drop files on it from Finder or your desktop, and they're
 copied there, over ssh, from the machine you're at.
+
+> Assumes the two machines can reach each other over ssh, for example both
+> on [Tailscale](https://tailscale.com). If the way back from the server to
+> yours isn't set up yet, the popup [walks you through it](#the-way-back).
 
 ![Two screenshots dropped into ~/src/acme-web/public/images from a Mac called macbook, marked new in the list, and a video still on its way](docs/images/drop.png)
 
