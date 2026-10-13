@@ -1,0 +1,39 @@
+id = "herdr-file-transfer"
+name = "File transfer"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Drop files from your desktop onto a herdr popup and they're copied, over ssh, into the agent's folder (or any folder you pick). Browse and search folders on the way."
+platforms = ["linux", "macos"]
+
+# Builds ./bin/herdr-file-transfer from source with Go, or downloads the release
+# binary for this version when Go isn't installed.
+[[build]]
+command = ["sh", "scripts/build.sh"]
+
+# Bind it to a key in ~/.config/herdr/config.toml:
+#   [[keys.command]]
+#   key = "prefix+alt+f"
+#   type = "plugin_action"
+#   command = "herdr-file-transfer.open"
+[[actions]]
+id = "open"
+title = "File transfer: drop files here"
+description = "Opens on the folder of the agent you're in: drop files from your desktop onto it and they're copied there over ssh. Browse or search to put them somewhere else."
+contexts = ["global", "workspace", "pane"]
+command = ["./bin/herdr-file-transfer", "action", "open"]
+
+[[actions]]
+id = "demo"
+title = "File transfer: demo (connection setup)"
+description = "The popup on a made-up Mac that isn't set up yet: the connection checklist, to look at or screenshot. Nothing is ssh'd to."
+contexts = ["global", "workspace", "pane"]
+command = ["./bin/herdr-file-transfer", "action", "demo"]
+
+# The popup, opened by the action with the folder to start in in its env.
+[[panes]]
+id = "picker"
+title = "File transfer"
+placement = "popup"
+width = "80%"
+height = "75%"
+command = ["./bin/herdr-file-transfer", "picker"]
