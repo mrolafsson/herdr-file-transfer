@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 - 2026-10-14
+
+- A file sent to an iPad is said to land where it does: iCloud Drive ›
+  Downloads, not Files › Tailscale.
+
 ## 0.4.0 - 2026-10-14
 
 - **`^s` sends to an iPad or phone**, with Taildrop: what's marked on the

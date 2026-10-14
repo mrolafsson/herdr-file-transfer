@@ -442,7 +442,7 @@ func operatorErr(msg string) bool {
 }
 
 // taildropFolder is where a file sent to a phone or tablet ends up there.
-const taildropFolder = "Files › Tailscale"
+const taildropFolder = "iCloud Drive › Downloads"
 
 // taildropCp is the command that sends what's on its stdin, as name, to
 // host with Taildrop.
