@@ -31,7 +31,8 @@ copied there, over ssh, from the machine you're at.
   machine as it opens, and if something's not set up, says what, and how,
   with a key for what it can do itself.
 - **From an iPad or a phone**, which can't take ssh, it says so, and takes
-  files sent with Taildrop instead.
+  files sent with Taildrop instead. `^s` sends the other way, with Taildrop
+  too: into Files › Tailscale on the iPad (files, not folders).
 - **Progress as it comes.** A file shows up in its folder the moment it's
   dropped, with a spinner and a bar, and is the real thing once whole.
 - **Images just work.** An image you drop or paste is brought over by

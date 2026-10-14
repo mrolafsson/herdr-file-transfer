@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -646,5 +647,62 @@ func TestSetupFillsPopup(t *testing.T) {
 	m.probes["macbook-pro"] = &probeResult{}
 	if !m.panes() {
 		t.Error("no panes once it works")
+	}
+}
+
+func TestTaildropToIPad(t *testing.T) {
+	// ^s on the server's side sends to an iPad with Taildrop: into its
+	// Tailscale folder, a file at a time, folders refused.
+	root, there := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(root, "a.png"), []byte("hello"), 0o644)
+	os.Mkdir(filepath.Join(root, "Invoices"), 0o755)
+	var host string
+	old := taildropCp
+	taildropCp = func(ctx context.Context, h, name string) *exec.Cmd {
+		host = h
+		return exec.CommandContext(ctx, "sh", "-c", `cat > "$1"`, "sh", filepath.Join(there, name))
+	}
+	t.Cleanup(func() { taildropCp = old })
+
+	m := newTestModel(t, root)
+	m.senders = []sender{{Host: "ipad-pro", Name: "ipad-pro", Device: "iPad", Mobile: true}}
+	m.probes["ipad-pro"] = &probeResult{err: errMobile}
+	m = drive(t, m, tea.WindowSizeMsg{Width: 140, Height: 30})
+	m.cursor = 1 // Invoices/
+	m = drive(t, m, tea.KeyMsg{Type: tea.KeySpace})
+	m = drive(t, m, tea.KeyMsg{Type: tea.KeySpace}) // a.png
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"^s send 2", "→", "^s sends files from"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("no %q:\n%s", want, view)
+		}
+	}
+	m = drive(t, m, tea.KeyMsg{Type: tea.KeyCtrlS})
+	if len(m.jobs) != 2 {
+		t.Fatalf("jobs %+v", m.jobs)
+	}
+	for _, j := range m.jobs {
+		if !j.taildrop || j.target != "ipad-pro" {
+			t.Errorf("job %+v", j)
+		}
+		switch j.name {
+		case "Invoices":
+			if j.state != jobFailed || !strings.Contains(j.err, "not folders") {
+				t.Errorf("a folder: %v %q", j.state, j.err)
+			}
+		case "a.png":
+			if j.state != jobDone || j.bytes.Load() != 5 {
+				t.Errorf("a.png: %v %q, %d bytes", j.state, j.err, j.bytes.Load())
+			}
+			if line := ansi.Strip(m.viewJob(j)); !strings.Contains(line, "a.png") || !strings.Contains(line, "ipad-pro: "+taildropFolder) {
+				t.Errorf("job line %q", line)
+			}
+		}
+	}
+	if got, _ := os.ReadFile(filepath.Join(there, "a.png")); string(got) != "hello" || host != "ipad-pro" {
+		t.Errorf("sent %q to %q", got, host)
+	}
+	if r := m.probes["ipad-pro"]; r == nil || r.err != errMobile {
+		t.Error("sending made the iPad look ssh-able")
 	}
 }

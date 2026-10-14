@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-10-14
+
+- **`^s` sends to an iPad or phone**, with Taildrop: what's marked on the
+  server goes to Files › Tailscale there, with progress as it goes. Files
+  only; a folder says so. The `→` between the panes is back for it.
+
 ## 0.3.0 - 2026-10-13
 
 - **Picks files for the other herdr plugins**, starting with herdr-linear's

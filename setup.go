@@ -380,7 +380,8 @@ func (m model) viewTaildrop(s sender, server string) []string {
 		if m.panes() {
 			where = "They land in the folder on the left."
 		}
-		out = append(out, styleText.Render(where))
+		out = append(out, styleText.Render(where), "",
+			styleText.Render("The other way, ^s sends files from "+server+" to the "+dev+", into "+taildropFolder+"."))
 	}
 	return out
 }
@@ -438,6 +439,45 @@ func operatorCommand() string {
 func operatorErr(msg string) bool {
 	low := strings.ToLower(msg)
 	return strings.Contains(low, "access denied") || strings.Contains(low, "permission") || strings.Contains(low, "operator")
+}
+
+// taildropFolder is where a file sent to a phone or tablet ends up there.
+const taildropFolder = "Files › Tailscale"
+
+// taildropCp is the command that sends what's on its stdin, as name, to
+// host with Taildrop.
+var taildropCp = func(ctx context.Context, host, name string) *exec.Cmd {
+	return exec.CommandContext(ctx, "tailscale", "file", "cp", "--update-interval=0", "--name="+name, "-", host+":")
+}
+
+// taildropSend sends the file src to host with Taildrop, reporting bytes as
+// they go. Taildrop takes files, not folders.
+func taildropSend(ctx context.Context, host, src string, onTotal, progress func(int64)) error {
+	st, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if st.IsDir() {
+		return errors.New("Taildrop sends files, not folders")
+	}
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	onTotal(st.Size())
+	cmd := taildropCp(ctx, host, filepath.Base(src))
+	cmd.Stdin = &counter{r: f, report: progress}
+	out, err := cmd.CombinedOutput()
+	switch {
+	case err == nil:
+		return nil
+	case ctx.Err() != nil:
+		return ctx.Err()
+	case operatorErr(string(out)):
+		return errors.New(serverName() + "'s Tailscale won't send files for " + localUser() + ": " + operatorCommand())
+	}
+	return errors.New(lastLine(string(out), err))
 }
 
 // ── in the popup ─────────────────────────────────────────────────────────────

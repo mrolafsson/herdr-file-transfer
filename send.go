@@ -160,6 +160,9 @@ func (m model) remoteMkdir(name string) (tea.Model, tea.Cmd) {
 // side: from here to your machine, or from it to here.
 func (m model) copyAcross() (tea.Model, tea.Cmd) {
 	items := m.chosen()
+	if s, ok := m.you(); ok && s.Mobile {
+		return m.taildropAcross(s, items)
+	}
 	s, ready := m.remoteReady()
 	if len(items) == 0 || !ready {
 		return m, nil
@@ -186,6 +189,28 @@ func (m model) copyAcross() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// taildropAcross sends what's selected here to a phone or tablet, with
+// Taildrop: into its Tailscale folder, there being no other to choose.
+func (m model) taildropAcross(s sender, items []entry) (tea.Model, tea.Cmd) {
+	if len(items) == 0 || m.onRemote {
+		return m, nil
+	}
+	m.err, m.flash = "", ""
+	var cmds []tea.Cmd
+	if !m.anyRunning() {
+		cmds = append(cmds, tick())
+	}
+	for _, e := range items {
+		m.nextID++
+		j := &job{id: m.nextID, src: e.path, name: path.Base(e.path), from: s.Name, target: s.Host,
+			dest: taildropFolder, out: true, taildrop: true, start: time.Now()}
+		m.jobs = append(m.jobs, j)
+		cmds = append(cmds, m.runJob(j))
+	}
+	m.clearMarks(false)
+	return m, tea.Batch(cmds...)
+}
+
 // runJob copies a job's file or folder, either way, reporting as it goes.
 func (m model) runJob(j *job) tea.Cmd {
 	id, ctx, ch, target := j.id, m.ctx, m.progress, j.target
@@ -204,9 +229,12 @@ func (m model) runJob(j *job) tea.Cmd {
 	return func() tea.Msg {
 		var got string
 		var err error
-		if j.out {
+		switch {
+		case j.taildrop:
+			got, err = j.dest, taildropSend(ctx, target, j.src, total, report)
+		case j.out:
 			got, err = sendTo(ctx, target, j.src, j.dest, total, report)
-		} else {
+		default:
 			got, err = fetch(ctx, target, j.src, j.dest, total, report)
 		}
 		return jobDoneMsg{id: id, dest: got, err: err}

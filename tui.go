@@ -58,6 +58,9 @@ type job struct {
 	took   time.Duration
 	out    bool   // sent to the other machine, not brought here
 	home   string // there, for showing where it went as ~/…
+	// taildrop: sent to a phone or tablet with Taildrop; dest is where it
+	// ends up there (taildropFolder), and target the Tailscale host.
+	taildrop bool
 }
 
 type (
@@ -403,7 +406,7 @@ func (m model) finish(msg jobDoneMsg) (tea.Model, tea.Cmd) {
 				m.pendingSelect = msg.dest
 			}
 		}
-		if j.target != "" {
+		if j.target != "" && !j.taildrop {
 			// It got in: as whom, for next time, and the check passes.
 			rememberUser(j.target)
 			m.probes[hostOf(j.target)] = &probeResult{}
@@ -855,7 +858,7 @@ func (m model) viewEntry(e entry, sel bool, w int, marked bool) string {
 
 func (m model) viewJob(j *job) string {
 	name := j.name
-	if name == "" || j.state == jobDone {
+	if name == "" || j.state == jobDone && !j.taildrop {
 		name = filepath.Base(j.dest) // what it's called now: an image herdr brought is renamed
 	}
 	var mark, tail string
@@ -1205,6 +1208,9 @@ func (m *model) recheck() tea.Cmd {
 // jobWhere is where a copy goes: a folder here, or there for one sent,
 // named by its machine ("macbook-pro:~/Downloads").
 func (m model) jobWhere(j *job, p string) string {
+	if j.taildrop {
+		return j.from + ": " + p
+	}
 	if j.out {
 		return j.from + ":" + remoteTilde(p, j.home)
 	}
@@ -1305,6 +1311,7 @@ func (m model) sideFooter() []hint {
 		}
 		if s.Mobile {
 			hs = append(hs, m.taildropHints()...)
+			hs = append(hs, on(hint{m.sendLabel(len(items), to), "ctrl+s", hintGo}, have && !m.onRemote))
 		} else {
 			_, ready := m.remoteReady()
 			hs = append(hs, on(hint{m.sendLabel(len(items), to), "ctrl+s", hintGo}, have && ready))
@@ -1362,6 +1369,8 @@ func (m model) markedStatus(w int) (string, bool) {
 	line := " " + itoa(n) + " marked:"
 	if _, ok := m.remoteReady(); ok {
 		line += " ^s sends them to " + m.otherSide() + " ·"
+	} else if s, ok := m.you(); ok && s.Mobile && !m.onRemote {
+		line += " ^s sends them to " + s.Name + " ·"
 	}
 	if m.picking() && !m.onRemote {
 		line += " enter to " + m.pick + " ·"
