@@ -223,7 +223,7 @@ operator. If the popup says so, once: `sudo tailscale set --operator=$USER`
 {
   "sender": "",
   "user": "",
-  "show_hidden": false,
+  "show_hidden": true,
   "search_depth": 6,
   "theme": ""
 }
@@ -232,7 +232,7 @@ operator. If the popup says so, once: `sudo tailscale set --operator=$USER`
 - `sender`: an ssh target to always fetch from (`me@laptop`, or a `Host`
   from `~/.ssh/config`), ahead of the ones found.
 - `user`: who to log in as on a found machine.
-- `show_hidden`: list dot-files and dot-folders.
+- `show_hidden`: list dot-files and dot-folders (`false` hides them).
 - `search_depth`: how many folders down search looks.
 - `theme`: `dark` or `light`, if the terminal can't say.
 

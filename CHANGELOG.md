@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 - 2026-10-16
+
+- Hidden files and folders are listed, on both machines and in search.
+  `"show_hidden": false` hides them again.
+
 ## 0.4.1 - 2026-10-14
 
 - A file sent to an iPad is said to land where it does: iCloud Drive ›

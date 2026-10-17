@@ -17,7 +17,7 @@ type config struct {
 	// dropped path when it says (/Users/<name>/…, /home/<name>/…), else
 	// ssh's own default.
 	User string `json:"user"`
-	// ShowHidden lists dotfiles and dot-folders too.
+	// ShowHidden lists dotfiles and dot-folders too (the default).
 	ShowHidden bool `json:"show_hidden"`
 	// SearchDepth is how many folders deep search looks under the one shown.
 	SearchDepth int `json:"search_depth"`
@@ -47,16 +47,21 @@ func configDir() string {
 	return filepath.Join(xdgDir("XDG_CONFIG_HOME", ".config"), "herdr", "plugins", "config", pluginID())
 }
 
+// defaultConfig is what's used for what config.json leaves out.
+func defaultConfig() config {
+	return config{ShowHidden: true}
+}
+
 // loadConfig reads config.json. On error it still returns the defaults.
 func loadConfig() (config, error) {
-	cfg := config{}
+	cfg := defaultConfig()
 	data, err := os.ReadFile(filepath.Join(configDir(), "config.json"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return withDefaults(cfg), err
 	}
 	if len(data) > 0 {
 		if err := json.Unmarshal(data, &cfg); err != nil {
-			return withDefaults(config{}), errors.New("config.json: " + err.Error())
+			return withDefaults(defaultConfig()), errors.New("config.json: " + err.Error())
 		}
 	}
 	return withDefaults(cfg), nil
