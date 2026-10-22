@@ -461,6 +461,13 @@ func TestSides(t *testing.T) {
 	if len(m.jobs) != 1 || !m.jobs[0].out || m.jobs[0].dest != "/Users/sam/Downloads" {
 		t.Fatalf("jobs %+v", m.jobs)
 	}
+	// Once it's there, your side is listed again, with it drawn as new.
+	next, cmd = m.Update(jobDoneMsg{id: m.jobs[0].id, dest: "/Users/sam/Downloads/report.pdf"})
+	m = next.(model)
+	if cmd == nil || !m.remote.loading || !m.landed["/Users/sam/Downloads/report.pdf"] {
+		t.Errorf("after the send: loading %v, landed %v", m.remote.loading, m.landed)
+	}
+	m.remote.loading = false
 	for _, j := range m.jobs {
 		j.state = jobFailed // it went nowhere: there's no macbook-pro here
 	}

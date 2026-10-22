@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.3 - 2026-10-22
+
+- What's sent to your machine shows up in its folder on that side, drawn
+  as new, once it's there: the list is fetched again.
+
 ## 0.4.2 - 2026-10-16
 
 - Hidden files and folders are listed, on both machines and in search.

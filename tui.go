@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -385,6 +386,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) finish(msg jobDoneMsg) (tea.Model, tea.Cmd) {
+	sent := false // into the folder shown on your machine's side
 	for _, j := range m.jobs {
 		if j.id != msg.id {
 			continue
@@ -405,6 +407,9 @@ func (m model) finish(msg jobDoneMsg) (tea.Model, tea.Cmd) {
 			if !m.onRemote && filepath.Dir(msg.dest) == m.dir {
 				m.pendingSelect = msg.dest
 			}
+		} else if !j.taildrop {
+			m.landed[msg.dest] = true
+			sent = sent || m.remote.home != "" && path.Dir(msg.dest) == m.remote.dir
 		}
 		if j.target != "" && !j.taildrop {
 			// It got in: as whom, for next time, and the check passes.
@@ -417,7 +422,22 @@ func (m model) finish(msg jobDoneMsg) (tea.Model, tea.Cmd) {
 		m.leaving = false
 		cmd = m.list(m.dir) // each row above says how its copy went
 	}
+	// Your side shows what was sent there, once the last of it is in; a
+	// listing on its way (another folder, a new one) is fresher anyway.
+	if sent && !m.remote.loading && !m.anyRunningOut() {
+		cmd = tea.Batch(cmd, m.remoteList(m.remote.dir))
+	}
 	return m, cmd
+}
+
+// anyRunningOut says whether a copy to your machine's folders is still going.
+func (m model) anyRunningOut() bool {
+	for _, j := range m.jobs {
+		if j.out && !j.taildrop && j.state == jobRunning {
+			return true
+		}
+	}
+	return false
 }
 
 func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
